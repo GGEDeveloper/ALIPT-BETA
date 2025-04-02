@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Salvando Logo</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        canvas { border: 1px solid #ccc; margin: 20px auto; display: block; }
+        button { padding: 10px 20px; background: #003E7E; color: white; border: none; cursor: pointer; margin: 10px; }
+    </style>
+</head>
+<body>
+    <h1>ALIMAMEDETOOLS Logo</h1>
+    <p>Clique no botão para fazer download do logo</p>
+    
+    <canvas id="logoCanvas" width="300" height="300"></canvas>
+    <br>
+    <button onclick="downloadLogo()">Download Logo</button>
+
+    <script>
+        // Configuração do canvas
+        const canvas = document.getElementById('logoCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Desenhar logo baseado na imagem anexada
+        function drawLogo() {
+            // Limpar canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Fundo hexagonal preto
+            ctx.fillStyle = 'black';
+            drawHexagon(150, 150, 130);
+            
+            // Texto "ALI" branco
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 40px Arial';
+            ctx.fillText('ALI', 100, 100);
+            
+            // Texto "MAMEDE" amarelo
+            ctx.fillStyle = '#FFD700';
+            ctx.font = 'bold 40px Arial';
+            ctx.fillText('MAMEDE', 170, 100);
+            
+            // Texto "TOOLS.COM" branco
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 28px Arial';
+            ctx.fillText('TOOLS.COM', 150, 140);
+            
+            // Linha divisória
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(70, 160);
+            ctx.lineTo(230, 160);
+            ctx.stroke();
+            
+            // Ferramentas na parte inferior (simplificado)
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.moveTo(90, 200);
+            ctx.lineTo(210, 200);
+            ctx.lineTo(190, 220);
+            ctx.lineTo(110, 220);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Contorno do hexágono
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            drawHexagonPath(150, 150, 130);
+            ctx.stroke();
+            
+            // Pequeno retângulo dourado no topo
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(145, 35, 10, 15);
+        }
+        
+        // Função auxiliar para desenhar hexágono
+        function drawHexagon(x, y, size) {
+            ctx.beginPath();
+            drawHexagonPath(x, y, size);
+            ctx.fill();
+        }
+        
+        function drawHexagonPath(x, y, size) {
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i - Math.PI / 6;
+                const px = x + size * Math.cos(angle);
+                const py = y + size * Math.sin(angle);
+                
+                if (i === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.closePath();
+        }
+        
+        // Função para download do logo
+        function downloadLogo() {
+            const link = document.createElement('a');
+            link.download = 'ALIMAMEDETOOLS_medium.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Desenhar o logo quando a página carregar
+        window.onload = drawLogo;
+    </script>
+</body>
+</html> 

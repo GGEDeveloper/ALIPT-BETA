@@ -1,0 +1,10 @@
+# These owners will be the default owners for everything in the repo
+* @GGEDeveloper
+
+# Frontend code
+/app/ @GGEDeveloper
+/components/ @GGEDeveloper
+/styles/ @GGEDeveloper
+
+# Data tools and scraper
+/tools/geko-scraper/ @GGEDeveloper 

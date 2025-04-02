@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Missing Images</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        canvas { border: 1px solid #ccc; margin: 10px 0; }
+        button { padding: 10px 15px; background: #003E7E; color: white; border: none; cursor: pointer; margin: 5px; }
+        .image-container { display: flex; flex-wrap: wrap; }
+        .image-item { margin: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>Create Missing Images</h1>
+    <p>This tool will create placeholder images for all missing files in the project.</p>
+    
+    <div class="image-container" id="imageContainer"></div>
+    
+    <script>
+        // List of missing image files from logs
+        const missingImages = [
+            // Content images
+            'ALIMAMEDETOOLS_medium.png',
+            'ALIMAMEDETOOLS_ferramentas-manuais.png',
+            'ALIMAMEDETOOLS_ferramentas-eletricas.png',
+            'ALIMAMEDETOOLS_equipamentos-construcao.png',
+            'ALIMAMEDETOOLS_seguranca.png',
+            'ALIMAMEDETOOLS_acessorios.png',
+            'ALIMAMEDETOOLS_jardinagem.png',
+            'ALIMAMEDETOOLS_sanitarios.png',
+            'ALIMAMEDETOOLS_pintura.png',
+            
+            // Product images
+            '/images/products/berbequim-dewalt.jpg',
+            '/images/products/rebarbadora-bosch.jpg',
+            '/images/products/chaves-fenda-stanley.jpg',
+            '/images/products/serra-circular-makita.jpg'
+        ];
+        
+        // Geko blue color & grey
+        const gekoblue = '#003E7E';
+        const grey = '#F5F5F5';
+        
+        // Create images
+        const container = document.getElementById('imageContainer');
+        
+        missingImages.forEach(imagePath => {
+            const fileName = imagePath.split('/').pop();
+            const isProduct = imagePath.includes('products');
+            
+            // Create div for this image
+            const div = document.createElement('div');
+            div.className = 'image-item';
+            
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            canvas.id = fileName;
+            
+            // Add to container
+            div.appendChild(canvas);
+            
+            // Add filename
+            const nameSpan = document.createElement('p');
+            nameSpan.textContent = fileName;
+            div.appendChild(nameSpan);
+            
+            // Add download button
+            const button = document.createElement('button');
+            button.textContent = 'Download';
+            button.onclick = () => downloadImage(fileName);
+            div.appendChild(button);
+            
+            container.appendChild(div);
+            
+            // Draw on canvas
+            const ctx = canvas.getContext('2d');
+            
+            // Fill background
+            ctx.fillStyle = grey;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw placeholder with text
+            ctx.fillStyle = gekoblue;
+            
+            if (isProduct) {
+                // Product image style
+                ctx.fillRect(40, 40, 120, 120);
+                ctx.fillStyle = 'white';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Product Image', 100, 100);
+                const productName = fileName.replace('.jpg', '').replace('-', ' ');
+                ctx.fillText(productName, 100, 120);
+            } else {
+                // Category image style
+                const name = fileName.replace('ALIMAMEDETOOLS_', '').replace('.png', '');
+                
+                // Draw circle
+                ctx.beginPath();
+                ctx.arc(100, 100, 70, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Add text
+                ctx.fillStyle = 'white';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(name, 100, 100);
+            }
+        });
+        
+        function downloadImage(filename) {
+            const canvas = document.getElementById(filename);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Function to download all images at once
+        function downloadAll() {
+            missingImages.forEach(imagePath => {
+                const fileName = imagePath.split('/').pop();
+                downloadImage(fileName);
+            });
+        }
+        
+        // Add download all button
+        const downloadAllBtn = document.createElement('button');
+        downloadAllBtn.textContent = 'Download All Images';
+        downloadAllBtn.style.display = 'block';
+        downloadAllBtn.style.margin = '20px auto';
+        downloadAllBtn.onclick = downloadAll;
+        document.body.appendChild(downloadAllBtn);
+    </script>
+</body>
+</html> 
