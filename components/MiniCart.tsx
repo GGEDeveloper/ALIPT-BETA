@@ -8,7 +8,7 @@ import { useCart, CartItem } from '@/context/CartContext';
 import { formatCurrency } from '@/utils/format';
 
 const MiniCart: React.FC = () => {
-  const { items, totalPrice, itemCount, isCartOpen, closeCart, removeItem } = useCart();
+  const { items, totalPrice, itemCount, isCartOpen, closeCart, removeItem, updateQuantity } = useCart();
   const miniCartRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,7 +89,33 @@ const MiniCart: React.FC = () => {
                                 )}
                               </div>
                               <div className="flex-1 flex items-end justify-between text-sm">
-                                <p className="text-gray-500">Qtd: {item.quantity}</p>
+                                <div className="flex items-center">
+                                  <span className="text-gray-500 mr-2">Qtd:</span>
+                                  <div className="flex border border-gray-300 rounded">
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        if (item.quantity > 1) {
+                                          updateQuantity(item.id, item.quantity - 1);
+                                        }
+                                      }}
+                                      className="px-2 text-gray-500 hover:bg-gray-100"
+                                      disabled={item.quantity <= 1}
+                                    >
+                                      -
+                                    </button>
+                                    <span className="w-8 text-center py-1">{item.quantity}</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        updateQuantity(item.id, item.quantity + 1);
+                                      }}
+                                      className="px-2 text-gray-500 hover:bg-gray-100"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
 
                                 <div className="flex">
                                   <button

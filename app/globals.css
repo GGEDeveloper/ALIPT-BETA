@@ -189,4 +189,26 @@ button.primary-btn {
 
 button.secondary-btn {
   background-color: var(--secondary-color) !important;
+}
+
+/* Estilos 3D para o carrossel */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+
+/* Transições suaves */
+.transition-all {
+  transition-property: all;
+}
+
+.duration-500 {
+  transition-duration: 500ms;
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 } 

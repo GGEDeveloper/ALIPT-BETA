@@ -1,16 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FiTrash2, FiPlus, FiMinus, FiRefreshCw, FiArrowLeft, FiShoppingBag, FiCreditCard } from 'react-icons/fi';
+import { FiTrash2, FiPlus, FiMinus, FiRefreshCw, FiArrowLeft, FiShoppingBag, FiCreditCard, FiUser } from 'react-icons/fi';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatCurrency } from '@/utils/format';
 
 export default function CartPage() {
   const { items, totalPrice, updateQuantity, removeItem, clearCart } = useCart();
+  const { isLoggedIn } = useAuth();
   const [couponCode, setCouponCode] = useState('');
   const [shippingOption, setShippingOption] = useState('standard');
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Redirecionar para a página inicial se não estiver logado
+  useEffect(() => {
+    if (!isLoggedIn && !isRedirecting) {
+      const timer = setTimeout(() => {
+        setIsRedirecting(true);
+        // Não vamos redirecionar automaticamente, apenas mostrar uma mensagem
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoggedIn, isRedirecting]);
   
   const shippingCost = items.length > 0 
     ? (shippingOption === 'express' ? 15 : (shippingOption === 'standard' ? 8 : 0)) 
@@ -27,6 +42,35 @@ export default function CartPage() {
     // Aqui seria implementada a lógica de aplicação de cupom
     alert(`Cupom "${couponCode}" aplicado com sucesso!`);
   };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="bg-gray-50 py-20">
+        <div className="container-custom max-w-md mx-auto">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiUser className="w-8 h-8 text-gray-500" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Acesso Restrito</h1>
+            <p className="text-gray-600 mb-6">
+              Para visualizar seu carrinho de compras e realizar pedidos, por favor faça login na sua conta ou crie uma nova.
+            </p>
+            <div className="space-y-3">
+              <Link href="/login">
+                <button className="w-full bg-secondary hover:bg-secondary-dark text-white py-3 px-4 rounded-md flex items-center justify-center gap-2 transition-colors">
+                  <FiUser className="w-5 h-5" />
+                  <span>Fazer Login</span>
+                </button>
+              </Link>
+              <Link href="/produtos" className="block text-secondary hover:text-secondary-dark font-medium">
+                Voltar para Produtos
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 py-10">

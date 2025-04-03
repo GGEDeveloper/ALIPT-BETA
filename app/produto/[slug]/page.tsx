@@ -4,12 +4,13 @@ import { useState } from 'react';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { FiShoppingCart, FiHeart, FiShare2, FiCheck, FiX, FiChevronRight, FiTruck, FiClock, FiPlus, FiMinus, FiShield, FiRefreshCw } from 'react-icons/fi';
+import { FiShoppingCart, FiHeart, FiShare2, FiCheck, FiX, FiChevronRight, FiTruck, FiClock, FiPlus, FiMinus, FiShield, FiRefreshCw, FiUser } from 'react-icons/fi';
 
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 import { products } from '@/lib/data';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 import { formatCurrency, calculateDiscountPercentage, formatDiscountPercentage } from '@/utils/format';
 
 type SpecValue = string | number | { [key: string]: string };
@@ -19,6 +20,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   const [quantity, setQuantity] = useState(1);
   const [imgError, setImgError] = useState(false);
   const { addItem } = useCart();
+  const { isLoggedIn } = useAuth();
 
   const product = products.find((p) => p.slug === params.slug);
   
@@ -73,6 +75,18 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
   
+  // Login Button Component
+  const LoginButton = () => (
+    <Link href="/login">
+      <button 
+        className="w-full flex items-center justify-center gap-2 bg-secondary hover:bg-secondary-dark text-white py-3 px-6 rounded-md text-base font-medium transition-colors"
+      >
+        <FiUser className="w-5 h-5" />
+        <span>Login para ver preço e comprar</span>
+      </button>
+    </Link>
+  );
+
   return (
     <>
       <main className="py-8">
@@ -121,7 +135,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                   />
                 )}
                 
-                {oldPrice && (
+                {isLoggedIn && oldPrice && (
                   <div className="absolute top-4 left-4 bg-red-500 text-white text-sm font-bold px-2 py-1 rounded z-10">
                     -{formatDiscountPercentage(discountPercentage)}
                   </div>
@@ -154,155 +168,201 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                 <div className="text-sm text-gray-500 mr-4">
                   <span className="font-semibold text-gray-700">Código:</span> {product.code}
                 </div>
-                <div 
-                  className={`badge ${product.inStock ? 'badge-success' : 'badge-danger'}`}
-                >
-                  {product.inStock ? 'Em Stock' : 'Sem Stock'}
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <div className="flex items-center mb-2">
-                  {oldPrice && (
-                    <span className="line-through text-gray-500 mr-2">€{formatCurrency(oldPrice)}</span>
-                  )}
-                  <span className="text-3xl font-bold text-primary">€{formatCurrency(price)}</span>
-                  {oldPrice && (
-                    <span className="ml-3 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">
-                      POUPE €{(oldPrice - price).toFixed(2)}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-500">IVA incluído</p>
-              </div>
-              
-              <div className="border-t border-b border-gray-200 py-6 mb-6">
-                <p className="text-gray-700 mb-4">{product.description || 'Produto de alta qualidade para uso profissional.'}</p>
-                
-                {/* Key features list */}
-                <ul className="space-y-2">
-                  {specsList && specsList.length > 0 ? (
-                    specsList.slice(0, 4).map((spec, index) => (
-                      <li key={index} className="flex items-start">
-                        <FiCheck className="text-green-500 mr-2 mt-1 flex-shrink-0" />
-                        <span className="text-gray-700">{spec}</span>
-                      </li>
-                    ))
-                  ) : (
-                    <li className="flex items-start">
-                      <FiCheck className="text-green-500 mr-2 mt-1 flex-shrink-0" />
-                      <span className="text-gray-700">Produto da marca {product.brand}</span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-              
-              {/* Add to cart section */}
-              <div className="mb-8">
-                <div className="flex items-center mb-4">
-                  <div className="mr-4">
-                    <label htmlFor="quantity" className="form-label">Quantidade</label>
-                    <div className="flex">
-                      <button 
-                        onClick={() => handleQuantityChange(quantity - 1)}
-                        disabled={quantity <= 1}
-                        className="border border-gray-300 px-3 py-2 rounded-l-md hover:bg-gray-100"
-                      >
-                        <FiMinus />
-                      </button>
-                      <input 
-                        type="number" 
-                        id="quantity" 
-                        className="form-input w-16 rounded-none text-center border-x-0" 
-                        min="1" 
-                        defaultValue="1" 
-                      />
-                      <button 
-                        onClick={() => handleQuantityChange(quantity + 1)}
-                        className="border border-gray-300 px-3 py-2 rounded-r-md hover:bg-gray-100"
-                      >
-                        <FiPlus />
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="text-sm mb-2">
-                      <span className={product.inStock ? 'text-green-600' : 'text-red-600'}>
-                        {product.inStock ? (
-                          <div>
-                            <span className="flex items-center text-lg mb-2">
-                              <FiCheck className="mr-2" /> Disponível em Stock
-                            </span>
-                            {/* Indicadores de stock */}
-                            <div className="flex items-center">
-                              <div className="flex space-x-2">
-                                {[1, 2, 3, 4, 5].map((index) => {
-                                  const stockLevel = parseInt(product.id) % 4;
-                                  let bgColor = 'bg-gray-200';
-                                  
-                                  if (stockLevel === 0) {
-                                    // Stock cheio
-                                    bgColor = 'bg-green-500';
-                                  } else if (stockLevel === 1 && index <= 4) {
-                                    // Stock alto
-                                    bgColor = index <= 4 ? 'bg-green-500' : 'bg-yellow-500';
-                                  } else if (stockLevel === 2 && index <= 3) {
-                                    // Stock médio
-                                    bgColor = index <= 3 ? 'bg-green-500' : 'bg-yellow-500';
-                                  } else if (stockLevel === 3 && index <= 2) {
-                                    // Stock baixo
-                                    bgColor = index <= 2 ? 'bg-green-500' : 'bg-red-500';
-                                  }
-                                  
-                                  return (
-                                    <div
-                                      key={index}
-                                      className={`w-4 h-4 rounded ${bgColor} transition-all duration-300`}
-                                    />
-                                  );
-                                })}
-                              </div>
-                              <span className="ml-3 text-sm text-gray-600">
-                                {parseInt(product.id) % 4 === 0 && 'Stock Cheio'}
-                                {parseInt(product.id) % 4 === 1 && 'Stock Alto'}
-                                {parseInt(product.id) % 4 === 2 && 'Stock Médio'}
-                                {parseInt(product.id) % 4 === 3 && 'Stock Baixo'}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="flex items-center text-lg">
-                            <FiX className="mr-2" /> Indisponível
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Tempo de entrega estimado: 2-4 dias úteis
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex flex-wrap gap-3">
-                  <button 
-                    className="btn btn-primary flex-1"
-                    disabled={!product.inStock}
-                    onClick={handleAddToCart}
+                {isLoggedIn && (
+                  <div 
+                    className={`badge ${product.inStock ? 'badge-success' : 'badge-danger'}`}
                   >
-                    <FiShoppingCart className="mr-2" />
-                    Adicionar ao Carrinho
-                  </button>
-                  
-                  <button className="btn btn-outline p-3 aspect-square flex items-center justify-center">
-                    <FiHeart />
-                  </button>
-                  
-                  <button className="btn btn-outline p-3 aspect-square flex items-center justify-center">
-                    <FiShare2 />
-                  </button>
-                </div>
+                    {product.inStock ? 'Em Stock' : 'Sem Stock'}
+                  </div>
+                )}
               </div>
+              
+              {isLoggedIn ? (
+                <>
+                  <div className="mb-6">
+                    <div className="flex items-center mb-2">
+                      {oldPrice && (
+                        <span className="line-through text-gray-500 mr-2">€{formatCurrency(oldPrice)}</span>
+                      )}
+                      <span className="text-3xl font-bold text-primary">€{formatCurrency(price)}</span>
+                      {oldPrice && (
+                        <span className="ml-3 bg-red-100 text-red-800 text-xs font-semibold px-2 py-1 rounded">
+                          POUPE €{(oldPrice - price).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">IVA incluído</p>
+                  </div>
+                  
+                  <div className="border-t border-b border-gray-200 py-6 mb-6">
+                    <p className="text-gray-700 mb-4">{product.description || 'Produto de alta qualidade para uso profissional.'}</p>
+                    
+                    {/* Key features list */}
+                    <ul className="space-y-2">
+                      {specsList && specsList.length > 0 ? (
+                        specsList.slice(0, 4).map((spec, index) => (
+                          <li key={index} className="flex items-start">
+                            <FiCheck className="text-green-500 mr-2 mt-1 flex-shrink-0" />
+                            <span className="text-gray-700">{spec}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="flex items-start">
+                          <FiCheck className="text-green-500 mr-2 mt-1 flex-shrink-0" />
+                          <span className="text-gray-700">Produto da marca {product.brand}</span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                  
+                  {/* Add to cart section */}
+                  <div className="mb-8">
+                    <div className="flex items-center mb-4">
+                      <div className="mr-4">
+                        <label htmlFor="quantity" className="form-label">Quantidade</label>
+                        <div className="flex">
+                          <button 
+                            onClick={() => handleQuantityChange(quantity - 1)}
+                            disabled={quantity <= 1}
+                            className="border border-gray-300 px-3 py-2 rounded-l-md hover:bg-gray-100"
+                          >
+                            <FiMinus />
+                          </button>
+                          <input 
+                            type="number" 
+                            id="quantity" 
+                            className="form-input w-16 rounded-none text-center border-x-0" 
+                            min="1" 
+                            defaultValue="1" 
+                          />
+                          <button 
+                            onClick={() => handleQuantityChange(quantity + 1)}
+                            className="border border-gray-300 px-3 py-2 rounded-r-md hover:bg-gray-100"
+                          >
+                            <FiPlus />
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-sm mb-2">
+                          <span className={product.inStock ? 'text-green-600' : 'text-red-600'}>
+                            {product.inStock ? (
+                              <div>
+                                <span className="flex items-center text-lg mb-2">
+                                  <FiCheck className="mr-2" /> Disponível em Stock
+                                </span>
+                                {/* Indicadores de stock */}
+                                <div className="flex items-center">
+                                  <div className="flex space-x-2">
+                                    {[1, 2, 3, 4, 5].map((index) => {
+                                      const stockLevel = parseInt(product.id) % 4;
+                                      let bgColor = 'bg-gray-200';
+                                      
+                                      if (stockLevel === 0) {
+                                        // Stock cheio
+                                        bgColor = 'bg-green-500';
+                                      } else if (stockLevel === 1 && index <= 4) {
+                                        // Stock alto
+                                        bgColor = index <= 4 ? 'bg-green-500' : 'bg-yellow-500';
+                                      } else if (stockLevel === 2 && index <= 3) {
+                                        // Stock médio
+                                        bgColor = index <= 3 ? 'bg-yellow-500' : 'bg-gray-200';
+                                      } else if (stockLevel === 3 && index <= 1) {
+                                        // Stock baixo
+                                        bgColor = index <= 1 ? 'bg-red-500' : 'bg-gray-200';
+                                      }
+                                      
+                                      return (
+                                        <div 
+                                          key={index} 
+                                          className={`w-5 h-2 rounded ${bgColor}`}
+                                        />
+                                      );
+                                    })}
+                                  </div>
+                                  <span className="ml-2 text-xs text-gray-500">
+                                    {['Muito elevado', 'Elevado', 'Médio', 'Baixo'][parseInt(product.id) % 4]}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-lg">
+                                <FiX className="mr-2" /> Fora de Stock
+                              </div>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <button 
+                        onClick={handleAddToCart}
+                        disabled={!product.inStock}
+                        className={`flex items-center justify-center py-3 px-6 rounded-md font-medium ${
+                          product.inStock 
+                            ? 'bg-primary text-white hover:bg-primary-dark' 
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <FiShoppingCart className="mr-2" />
+                        <span>Adicionar ao Carrinho</span>
+                      </button>
+                      <button 
+                        onClick={() => {
+                          handleAddToCart();
+                          // Navigate to checkout
+                          window.location.href = '/checkout';
+                        }}
+                        disabled={!product.inStock}
+                        className={`flex items-center justify-center py-3 px-6 rounded-md font-medium ${
+                          product.inStock 
+                            ? 'bg-secondary text-white hover:bg-secondary-dark' 
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        <span>Comprar Agora</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                // Mostra informações básicas do produto e botão de login quando não está logado
+                <>
+                  <div className="border-t border-b border-gray-200 py-6 mb-6">
+                    <p className="text-gray-700 mb-4">{product.description || 'Produto de alta qualidade para uso profissional.'}</p>
+                    
+                    {/* Key features list */}
+                    <ul className="space-y-2">
+                      {specsList && specsList.length > 0 ? (
+                        specsList.slice(0, 4).map((spec, index) => (
+                          <li key={index} className="flex items-start">
+                            <FiCheck className="text-green-500 mr-2 mt-1 flex-shrink-0" />
+                            <span className="text-gray-700">{spec}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="flex items-start">
+                          <FiCheck className="text-green-500 mr-2 mt-1 flex-shrink-0" />
+                          <span className="text-gray-700">Produto da marca {product.brand}</span>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-gray-50 p-6 rounded-lg border border-gray-200 mb-6">
+                    <h3 className="text-lg font-medium text-gray-800 mb-3">
+                      Entre para ver preços e disponibilidade
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Para visualizar preços, disponibilidade e realizar compras, 
+                      por favor faça login na sua conta ou crie uma nova.
+                    </p>
+                    <LoginButton />
+                  </div>
+                </>
+              )}
               
               {/* Delivery & Returns */}
               <div className="bg-gray-50 rounded-lg p-6 mb-6">

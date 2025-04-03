@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { FiMenu, FiX, FiShoppingCart, FiSearch, FiUser, FiHeart, FiPackage, FiMapPin, FiCreditCard, FiSettings, FiLogOut } from 'react-icons/fi';
 import { ShoppingCart, Menu } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { itemCount, toggleCart } = useCart();
+  const { user, isLoggedIn, isAdmin, login, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -48,6 +50,42 @@ export default function Header() {
     // Add your login logic here
     console.log('Login attempted');
     setIsLoginModalOpen(false);
+    
+    // Login usando o contexto de autenticação
+    login({
+      id: 'user-1',
+      name: 'João Silva',
+      email: 'joao.silva@example.com',
+      isAdmin: false
+    });
+  };
+
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
+  };
+
+  // Funções para login de desenvolvimento
+  const handleDevUserLogin = () => {
+    login({
+      id: 'dev-user-1',
+      name: 'Cliente Teste',
+      email: 'cliente@exemplo.com',
+      isAdmin: false
+    });
+    console.log('Dev User Login: Cliente logado');
+    setIsLoginModalOpen(false);
+  };
+
+  const handleDevAdminLogin = () => {
+    login({
+      id: 'dev-admin-1',
+      name: 'Admin Teste',
+      email: 'admin@exemplo.com',
+      isAdmin: true
+    });
+    console.log('Dev Admin Login: Administrador logado');
+    setIsLoginModalOpen(false);
   };
 
   return (
@@ -78,14 +116,98 @@ export default function Header() {
             <Link href="/contato" className="hover:text-secondary transition-colors">
               Contato
             </Link>
+            {isAdmin && (
+              <Link href="/admin" className="hover:text-secondary transition-colors bg-accent px-3 py-1 rounded-md">
+                Admin
+              </Link>
+            )}
           </nav>
           <div className="flex items-center space-x-4">
-            <button 
-              className="login-button bg-secondary hover:bg-accent text-white px-4 py-2 rounded-md transition-colors"
-              onClick={() => setIsLoginModalOpen(true)}
-            >
-              Login
-            </button>
+            {!isLoggedIn ? (
+              <>
+                <button 
+                  className="login-button bg-secondary hover:bg-accent text-white px-4 py-2 rounded-md transition-colors"
+                  onClick={() => setIsLoginModalOpen(true)}
+                >
+                  Login
+                </button>
+                {/* Botões de desenvolvimento para login */}
+                <div className="hidden md:flex space-x-2">
+                  <button 
+                    className="bg-green-600 hover:bg-green-700 text-white text-xs px-2 py-1 rounded-md transition-colors"
+                    onClick={handleDevUserLogin}
+                  >
+                    DevLogin-User
+                  </button>
+                  <button 
+                    className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded-md transition-colors"
+                    onClick={handleDevAdminLogin}
+                  >
+                    DevLogin-Admin
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="relative user-menu-container">
+                <button 
+                  className="flex items-center space-x-2 hover:text-secondary transition-colors"
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                >
+                  <FiUser className="w-5 h-5" />
+                  <span className="hidden md:inline">{user?.name}</span>
+                  {isAdmin && <span className="bg-red-500 text-xs px-2 py-0.5 rounded-full">Admin</span>}
+                </button>
+                
+                {isUserMenuOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
+                    <div className="px-4 py-2 text-sm text-gray-700 border-b">
+                      <p className="font-semibold">{user?.name}</p>
+                      <p className="text-gray-500 text-xs">{isAdmin ? 'Administrador' : 'Cliente'}</p>
+                    </div>
+                    
+                    {!isAdmin && (
+                      <>
+                        <Link href="/conta" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiUser className="mr-2" /> Minha Conta
+                        </Link>
+                        <Link href="/conta/pedidos" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiPackage className="mr-2" /> Pedidos
+                        </Link>
+                        <Link href="/conta/favoritos" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiHeart className="mr-2" /> Favoritos
+                        </Link>
+                        <Link href="/conta/enderecos" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiMapPin className="mr-2" /> Endereços
+                        </Link>
+                      </>
+                    )}
+                    
+                    {isAdmin && (
+                      <>
+                        <Link href="/admin" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiSettings className="mr-2" /> Painel Admin
+                        </Link>
+                        <Link href="/admin/produtos" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiPackage className="mr-2" /> Gerenciar Produtos
+                        </Link>
+                        <Link href="/admin/pedidos" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                          <FiShoppingCart className="mr-2" /> Gerenciar Pedidos
+                        </Link>
+                      </>
+                    )}
+                    
+                    <div className="border-t">
+                      <button 
+                        onClick={handleLogout}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                      >
+                        <FiLogOut className="mr-2" /> Sair
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <button className="text-white hover:text-secondary transition-colors" onClick={toggleCart}>
               <ShoppingCart className="w-6 h-6" />
             </button>
@@ -150,6 +272,22 @@ export default function Header() {
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-secondary hover:bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary"
                 >
                   Entrar
+                </button>
+              </div>
+              <div className="mt-3 flex justify-between">
+                <button
+                  type="button"
+                  onClick={handleDevUserLogin}
+                  className="flex-1 mr-2 flex justify-center py-2 px-1 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700"
+                >
+                  DevLogin-User
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDevAdminLogin}
+                  className="flex-1 ml-2 flex justify-center py-2 px-1 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-red-600 hover:bg-red-700"
+                >
+                  DevLogin-Admin
                 </button>
               </div>
             </form>

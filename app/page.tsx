@@ -6,7 +6,14 @@ import { FiTool, FiShield, FiTruck, FiHeadphones } from 'react-icons/fi';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import FeaturedProductsCarousel from '@/components/FeaturedProductsCarousel';
+import PromotionsCarousel from '@/components/PromotionsCarousel';
+import FeaturedCategories from '@/components/FeaturedCategories';
 import { products, categories as dbCategories, brands, logProductCategories } from '@/lib/data';
+import { importGeneratedProducts } from "@/lib/import_generated_products";
+
+// Import generated products
+importGeneratedProducts();
 
 function DebugButton() {
   return (
@@ -14,35 +21,16 @@ function DebugButton() {
       onClick={() => {
         console.log("Debug: Logging product categories");
         logProductCategories();
+        console.log(`Total products: ${products.length}`);
       }}
       className="bg-red-500 text-white px-4 py-2 rounded"
     >
-      DEBUG
+      DEBUG ({products.length} Products)
     </button>
   );
 }
 
-const homeCategories = [
-  { name: 'Construção', image: '/images/categories/ALIMAMEDETOOLS_CONTRUCAO.png', slug: 'construcao' },
-  { name: 'Eletricidade', image: '/images/categories/ALIMAMEDETOOLS_ELETRICIDADE.png', slug: 'eletricidade' },
-  { name: 'Ferramentas', image: '/images/categories/ALIMAMEDETOOLS_FERRAMENTAS.png', slug: 'ferramentas' },
-  { name: 'Geral', image: '/images/categories/ALIMAMEDETOOLS_GERAL.png', slug: 'geral' },
-  { name: 'Jardim', image: '/images/categories/ALIMAMEDETOOLS_JARDIM.png', slug: 'jardim' },
-  { name: 'Oficina e Mecânica', image: '/images/categories/ALIMAMEDETOOLS_OFICINA.png', slug: 'oficina-mecanica' },
-  { name: 'Proteção e Segurança', image: '/images/categories/ALIMAMEDETOOLS_SECTORES7.png', slug: 'protecao-seguranca' },
-  { name: 'Luzes de Proteção', image: '/images/categories/ALIMAMEDETOOLS_SECTORES8.png', slug: 'luzes-protecao' },
-  { name: 'Setor 9', image: '/images/categories/ALIMAMEDETOOLS_SECTORES9.png', slug: 'setor-9' },
-  { name: 'Setor 10', image: '/images/categories/ALIMAMEDETOOLS_SECTORES10.png', slug: 'setor-10' },
-  { name: 'Setor 12', image: '/images/categories/ALIMAMEDETOOLS_SECTORES12.png', slug: 'setor-12' },
-  { name: 'Setor 16', image: '/images/categories/ALIMAMEDETOOLS_SECTORES16.png', slug: 'setor-16' },
-];
-
 export default function Home() {
-  // Get featured products (first 8)
-  const featuredProducts = products.slice(0, 4);
-  // Get some products on sale (those with oldPrice)
-  const onSaleProducts = products.filter(product => product.oldPrice).slice(0, 4);
-
   return (
     <main className="bg-[#FFC03A]">
       {/* Hero Section */}
@@ -57,10 +45,10 @@ export default function Home() {
                 Descubra a nossa ampla gama de ferramentas e equipamentos de alta qualidade para construção, agricultura e indústria.
               </p>
               <div className="flex flex-wrap gap-4">
-                <Link href="/produtos" className="btn bg-white text-[rgb(140,140,140)] hover:bg-[rgb(198,198,198)]">
+                <Link href="/produtos" className="btn bg-white text-[rgb(140,140,140)] hover:bg-[rgb(198,198,198)] py-2 px-4 font-medium text-sm rounded transition-colors duration-200">
                   Ver Produtos
                 </Link>
-                <Link href="/contactos" className="btn border border-white text-white hover:bg-white hover:text-[rgb(140,140,140)]">
+                <Link href="/contactos" className="btn border border-white text-white hover:bg-white hover:text-[rgb(140,140,140)] py-2 px-4 font-medium text-sm rounded transition-colors duration-200">
                   Contacte-nos
                 </Link>
                 <DebugButton />
@@ -81,6 +69,15 @@ export default function Home() {
         </div>
       </section>
       
+      {/* Featured Categories */}
+      <FeaturedCategories />
+      
+      {/* Featured Products */}
+      <FeaturedProductsCarousel />
+      
+      {/* On Sale Section */}
+      <PromotionsCarousel />
+
       {/* Features Section */}
       <section className="py-12 bg-[rgb(255,255,255)]">
         <div className="container-custom">
@@ -128,97 +125,7 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Featured Categories */}
-      <section className="py-16">
-        <div className="container-custom">
-          <h2 className="text-3xl font-bold mb-8 text-center font-heading text-[rgb(25,25,25)]">Categorias Principais</h2>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {homeCategories.slice(0, 8).map((category) => (
-              <Link 
-                key={category.slug}
-                href={`/produtos?categoria=${category.slug}`}
-                className="group bg-white rounded-lg shadow-md p-4 transition-transform hover:scale-105"
-              >
-                <div className="aspect-square relative mb-4 rounded-lg overflow-hidden bg-gray-100">
-                  <Image
-                    src={category.image}
-                    alt={category.name}
-                    fill
-                    className="object-contain p-2"
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  />
-                </div>
-                <h2 className="text-lg font-semibold text-center group-hover:text-orange-500">
-                  {category.name}
-                </h2>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-      
-      {/* Featured Products */}
-      <section className="py-16 bg-[rgb(255,255,255)]">
-        <div className="container-custom">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold font-heading text-[rgb(25,25,25)]">Produtos Destacados</h2>
-            <Link href="/produtos" className="text-[rgb(140,140,140)] hover:underline">
-              Ver Todos &rarr;
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                slug={product.slug}
-                code={product.code}
-                price={product.price}
-                oldPrice={product.oldPrice}
-                image={product.image}
-                inStock={product.inStock}
-                category={product.category}
-                brand={product.brand}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-      
-      {/* On Sale Section */}
-      <section className="py-16">
-        <div className="container-custom">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold font-heading text-[rgb(25,25,25)]">Promoções</h2>
-            <Link href="/promocoes" className="text-[rgb(140,140,140)] hover:underline">
-              Ver Todas &rarr;
-            </Link>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {onSaleProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                slug={product.slug}
-                code={product.code}
-                price={product.price}
-                oldPrice={product.oldPrice}
-                image={product.image}
-                inStock={product.inStock}
-                category={product.category}
-                brand={product.brand}
-              />
-            ))}
-          </div>
-        </div>
-      </section>
-      
-      {/* Brand Section */}
+      {/* Brand Section - Temporarily disabled
       <section className="py-16 bg-[rgb(255,255,255)]">
         <div className="container-custom">
           <h2 className="text-3xl font-bold mb-8 text-center font-heading text-[rgb(25,25,25)]">Marcas em Destaque</h2>
@@ -235,9 +142,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      */}
       
       {/* CTA Section */}
-      <section className="py-20 bg-primary text-white">
+      <section className="py-20 bg-[#FFC03A] text-white">
         <div className="container-custom">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl font-bold mb-4 font-heading">Precisa de Ajuda a Escolher as Ferramentas Certas?</h2>
@@ -245,10 +153,10 @@ export default function Home() {
               A nossa equipa de especialistas está pronta para o ajudar a encontrar as melhores ferramentas para o seu projeto.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <Link href="/contactos" className="btn bg-white text-primary hover:bg-gray-100">
+              <Link href="/contactos" className="btn bg-white text-[#FFC03A] hover:bg-gray-100 py-2 px-4 font-medium text-sm rounded transition-colors duration-200">
                 Contacte-nos
               </Link>
-              <Link href="/sobre" className="btn border border-white text-white hover:bg-white hover:text-primary">
+              <Link href="/sobre" className="btn border border-white text-white hover:bg-white hover:text-[#FFC03A] py-2 px-4 font-medium text-sm rounded transition-colors duration-200">
                 Sobre Nós
               </Link>
             </div>

@@ -7,9 +7,14 @@ module.exports = {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '480px',
+      },
       colors: {
         primary: "#000000",
+        "primary-dark": "#000000",
         secondary: "#FF6B00",
+        "secondary-dark": "#E05A00",
         accent: "#FF4C00",
         light: "#F5F5F5",
         dark: "#191919"

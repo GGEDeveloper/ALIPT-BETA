@@ -5,7 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { FiFilter, FiChevronDown, FiChevronRight, FiGrid, FiList, FiInfo } from 'react-icons/fi';
 import ProductCard from '@/components/ProductCard';
-import { products } from '@/lib/data';
+import CategorySidebar from '@/components/CategorySidebar';
+import { products, categories } from '@/lib/data';
+import { useSearchParams } from 'next/navigation';
+import { importGeneratedProducts } from '@/lib/import_generated_products';
 
 // Define types for our product
 interface Product {
@@ -24,77 +27,194 @@ interface Product {
 }
 
 export default function ProductsPage() {
-  // Para debug - mostrar quantos produtos temos
-  console.log(`Total de produtos: ${products.length}`);
-  
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get('categoria');
+  const subcategoryParam = searchParams.getAll('subcategoria');
+
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [viewType, setViewType] = useState('grid'); // 'grid' or 'list'
-  const [gekoProductsCount, setGekoProductsCount] = useState(0);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [allProductsData, setAllProductsData] = useState(products);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
+  
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [paginatedProducts, setPaginatedProducts] = useState<Product[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  
   const [activeFilters, setActiveFilters] = useState({
     categories: [] as string[],
+    subcategories: [] as string[],
     priceRange: { min: 0, max: 5000 },
     brands: [] as string[],
     ratings: 0,
     sort: 'featured', // 'featured', 'price-low', 'price-high', 'newest'
   });
   
-  // Extract unique categories from products
-  const categories = Array.from(new Set(products.map(product => product.category)));
-  
-  // Extract unique brands from products
-  const brands = Array.from(new Set(products.map(product => product.brand)));
-
-  // Initialize counts and filtered products on client side only
+  // Importar produtos gerados - mover para dentro de um useEffect
   useEffect(() => {
-    const gCount = products.filter(p => String(p.id).startsWith('g')).length;
-    setGekoProductsCount(gCount);
-    setFilteredProducts(products);
+    console.log("Importando produtos...");
+    const updatedProducts = importGeneratedProducts();
+    console.log(`Total produtos após importação: ${updatedProducts.length}`);
+    setAllProductsData(updatedProducts);
   }, []);
   
+  // Extract unique categories from products
+  const productCategories = Array.from(new Set(allProductsData.map(product => product.category)));
+  
+  // Extract unique brands from products
+  const brands = Array.from(new Set(allProductsData.map(product => product.brand)));
+
+  // Calcular contagens de forma estática para evitar diferenças de hidratação
+  const gekoProductsCount = allProductsData.filter(p => String(p.id).startsWith('g')).length;
+  const regularProductsCount = allProductsData.length - gekoProductsCount;
+  const categoriesCount = categories.length;
+
+  // Atualizar filtros baseado nos parâmetros da URL
+  useEffect(() => {
+    const categoriesFromUrl = searchParams.getAll('categoria');
+    const subcategoriesFromUrl = searchParams.getAll('subcategoria');
+    const pageFromUrl = searchParams.get('page');
+    const itemsPerPageFromUrl = searchParams.get('porpagina');
+    
+    if (pageFromUrl) {
+      setCurrentPage(parseInt(pageFromUrl) || 1);
+    }
+    
+    if (itemsPerPageFromUrl) {
+      setItemsPerPage(parseInt(itemsPerPageFromUrl) || 50);
+    }
+    
+    setActiveFilters(prev => ({
+      ...prev,
+      categories: categoriesFromUrl,
+      subcategories: subcategoriesFromUrl,
+    }));
+  }, [searchParams]);
+
   // Filter products when activeFilters change
   useEffect(() => {
-    let result = [...products];
-    
-    // Filter by category
-    if (activeFilters.categories.length > 0) {
+    try {
+      let result = [...allProductsData];
+      
+      // Log para debug
+      console.log(`Filtrando ${result.length} produtos com filtros:`, activeFilters);
+      
+      // Assegurar que todos produtos têm os campos necessários
+      result = result.filter(product => {
+        if (!product || !product.price || !product.category || !product.brand) {
+          console.warn('Produto inválido encontrado:', product);
+          return false;
+        }
+        
+        // Converter price para number se for string
+        if (typeof product.price === 'string') {
+          product.price = parseFloat(product.price);
+        }
+        
+        return true;
+      });
+      
+      // Filtragem por categorias e subcategorias
+      if (activeFilters.categories.length > 0 || activeFilters.subcategories.length > 0) {
+        // Mapeamento de slugs de subcategorias para suas categorias principais
+        const subcategoryToParentMap = new Map();
+        categories.forEach(category => {
+          if (category.subcategories) {
+            category.subcategories.forEach(subcategory => {
+              subcategoryToParentMap.set(subcategory.slug, category.slug);
+            });
+          }
+        });
+        
+        // Categorias para filtrar baseadas nas seleções
+        const categoriesToFilter = [...activeFilters.categories];
+        
+        // Adicionar categorias principais das subcategorias selecionadas
+        activeFilters.subcategories.forEach(subcatSlug => {
+          const parentCategorySlug = subcategoryToParentMap.get(subcatSlug);
+          if (parentCategorySlug && !categoriesToFilter.includes(parentCategorySlug)) {
+            categoriesToFilter.push(parentCategorySlug);
+          }
+        });
+        
+        // Filtrar produtos pelas categorias principais
+        if (categoriesToFilter.length > 0) {
+          result = result.filter(product => 
+            categoriesToFilter.includes(product.category)
+          );
+        }
+      }
+      
+      // Filter by price range
       result = result.filter(product => 
-        activeFilters.categories.includes(product.category)
+        product.price >= activeFilters.priceRange.min && 
+        product.price <= activeFilters.priceRange.max
       );
+      
+      // Filter by brand
+      if (activeFilters.brands.length > 0) {
+        result = result.filter(product => 
+          activeFilters.brands.includes(product.brand)
+        );
+      }
+      
+      // Sort products
+      switch (activeFilters.sort) {
+        case 'price-low':
+          result.sort((a, b) => a.price - b.price);
+          break;
+        case 'price-high':
+          result.sort((a, b) => b.price - a.price);
+          break;
+        case 'newest':
+          // Assuming newer products have higher IDs
+          result.sort((a, b) => {
+            const idA = typeof a.id === 'string' ? parseInt(a.id.replace(/\D/g, '') || '0') : a.id;
+            const idB = typeof b.id === 'string' ? parseInt(b.id.replace(/\D/g, '') || '0') : b.id;
+            return idB - idA;
+          });
+          break;
+        default:
+          // 'featured' - no sorting needed
+          break;
+      }
+      
+      console.log(`Resultados após filtros: ${result.length} produtos`);
+      setFilteredProducts(result);
+      
+      // Resetar para a primeira página quando os filtros mudam
+      setCurrentPage(1);
+      
+      // Calcular o número total de páginas
+      setTotalPages(Math.ceil(result.length / itemsPerPage));
+    } catch (error) {
+      console.error('Erro ao filtrar produtos:', error);
+      // Em caso de erro, mostrar todos os produtos
+      setFilteredProducts(allProductsData);
+      setTotalPages(Math.ceil(allProductsData.length / itemsPerPage));
     }
-    
-    // Filter by price range
-    result = result.filter(product => 
-      product.price >= activeFilters.priceRange.min && 
-      product.price <= activeFilters.priceRange.max
-    );
-    
-    // Filter by brand
-    if (activeFilters.brands.length > 0) {
-      result = result.filter(product => 
-        activeFilters.brands.includes(product.brand)
-      );
-    }
-    
-    // Sort products
-    switch (activeFilters.sort) {
-      case 'price-low':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'newest':
-        // Assuming newer products have higher IDs
-        result.sort((a, b) => parseInt(b.id) - parseInt(a.id));
-        break;
-      default:
-        // 'featured' - no sorting needed
-        break;
-    }
-    
-    setFilteredProducts(result);
-  }, [activeFilters]);
+  }, [activeFilters, categories, allProductsData, itemsPerPage]);
+  
+  // Atualizar produtos paginados quando a página ou os produtos filtrados mudam
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedItems = filteredProducts.slice(startIndex, endIndex);
+    setPaginatedProducts(paginatedItems);
+  }, [filteredProducts, currentPage, itemsPerPage]);
+  
+  // Função para mudar de página
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
+  };
+  
+  // Função para mudar itens por página
+  const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newItemsPerPage = parseInt(e.target.value);
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1); // Voltar para primeira página ao mudar quantidade por página
+  };
   
   const toggleCategory = (category: string) => {
     setActiveFilters(prev => {
@@ -133,14 +253,127 @@ export default function ProductsPage() {
   const clearAllFilters = () => {
     setActiveFilters({
       categories: [],
+      subcategories: [],
       priceRange: { min: 0, max: 5000 },
       brands: [],
       ratings: 0,
       sort: 'featured',
     });
+    
+    // Resetar para a primeira página
+    setCurrentPage(1);
   };
 
-  const regularProductsCount = products.length - gekoProductsCount;
+  // Renderizar os controles de paginação
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+    
+    // Determinar quais páginas mostrar (limitar a 5 botões de página + primeira/última)
+    const pageButtons = [];
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    
+    // Ajustar startPage se endPage está no limite
+    if (endPage - startPage + 1 < maxButtons) {
+      startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+    
+    // Adicionar botão para primeira página
+    if (startPage > 1) {
+      pageButtons.push(
+        <button
+          key="first"
+          onClick={() => goToPage(1)}
+          className={`px-2 sm:px-3 py-1 rounded ${currentPage === 1 ? 'bg-secondary text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+        >
+          1
+        </button>
+      );
+      
+      if (startPage > 2) {
+        pageButtons.push(<span key="ellipsis1" className="px-1 sm:px-2">...</span>);
+      }
+    }
+    
+    // Adicionar botões para páginas no meio
+    for (let i = startPage; i <= endPage; i++) {
+      pageButtons.push(
+        <button
+          key={i}
+          onClick={() => goToPage(i)}
+          className={`px-2 sm:px-3 py-1 rounded ${currentPage === i ? 'bg-secondary text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+        >
+          {i}
+        </button>
+      );
+    }
+    
+    // Adicionar botão para última página
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pageButtons.push(<span key="ellipsis2" className="px-1 sm:px-2">...</span>);
+      }
+      
+      pageButtons.push(
+        <button
+          key="last"
+          onClick={() => goToPage(totalPages)}
+          className={`px-2 sm:px-3 py-1 rounded ${currentPage === totalPages ? 'bg-secondary text-white' : 'bg-gray-200 hover:bg-gray-300'}`}
+        >
+          {totalPages}
+        </button>
+      );
+    }
+    
+    return (
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-6 bg-white p-4 rounded-lg shadow-sm gap-4">
+        <div className="flex items-center">
+          <span className="text-sm sm:text-base mr-2 sm:mr-3 text-[rgb(25,25,25)]">Itens por página:</span>
+          <select
+            value={itemsPerPage}
+            onChange={handleItemsPerPageChange}
+            className="border border-gray-300 rounded-md px-2 py-1 sm:px-3 sm:py-1.5 text-sm text-[rgb(25,25,25)] focus:outline-none focus:ring-2 focus:ring-secondary"
+          >
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="200">200</option>
+          </select>
+        </div>
+        
+        <div className="flex items-center justify-center">
+          <button
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`px-2 sm:px-3 py-1 rounded mr-1 sm:mr-2 text-sm ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            Anterior
+          </button>
+          
+          <div className="flex space-x-1">
+            {pageButtons}
+          </div>
+          
+          <button
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className={`px-2 sm:px-3 py-1 rounded ml-1 sm:ml-2 text-sm ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'}`}
+          >
+            Próxima
+          </button>
+        </div>
+        
+        <div className="text-sm sm:text-base text-center sm:text-right text-[rgb(25,25,25)]">
+          <span className="hidden xs:inline">Mostrando </span>
+          <span>{(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredProducts.length)} </span>
+          <span className="hidden xs:inline">de </span>
+          <span className="xs:hidden">/</span>
+          <span> {filteredProducts.length} produtos</span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main className="bg-[#FFC03A]">
@@ -162,18 +395,23 @@ export default function ProductsPage() {
             <div className="flex flex-col md:flex-row items-center">
               <div className="md:w-1/2 mb-6 md:mb-0">
                 <h1 className="text-3xl md:text-4xl font-bold mb-4 font-heading">
-                  Produtos de Alta Qualidade
+                  Catálogo Completo de Ferramentas
                 </h1>
                 <p className="text-[rgb(255,255,255)] max-w-2xl mb-4">
-                  Descubra nossa seleção completa de ferramentas e equipamentos para todas as suas necessidades profissionais.
+                  Explore nossa seleção expandida com o novo catálogo Geko! Ferramentas profissionais para construção, renovação, jardim e muito mais.
                 </p>
-                <div className="flex flex-wrap gap-2 text-sm">
+                <div className="flex flex-wrap gap-2 text-sm mb-4">
                   <span className="bg-secondary px-3 py-1 rounded-full text-white flex items-center">
-                    <FiInfo className="mr-1" /> Total: {products.length} produtos
+                    <FiInfo className="mr-1" /> Total: {regularProductsCount + gekoProductsCount} produtos
                   </span>
                   <span className="bg-primary px-3 py-1 rounded-full text-white flex items-center">
                     <FiInfo className="mr-1" /> Geko: {gekoProductsCount} produtos
                   </span>
+                </div>
+                <div className="bg-[rgba(255,255,255,0.2)] p-2 rounded-md">
+                  <p className="text-sm">
+                    Nova coleção com mais de {categoriesCount} categorias incluindo Materiais Abrasivos, Ferramentas Diamantadas, Pneumática e muito mais!
+                  </p>
                 </div>
               </div>
               <div className="md:w-1/2 flex justify-center">
@@ -207,28 +445,18 @@ export default function ProductsPage() {
           
           {/* Sidebar Filters */}
           <aside className={`lg:w-1/4 transition-all duration-300 ${isFilterOpen ? 'max-h-[2000px]' : 'max-h-0 lg:max-h-full overflow-hidden lg:overflow-visible'}`}>
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              {/* Categories */}
-              <div className="mb-6">
-                <h3 className="font-semibold mb-3">Categorias</h3>
-                <div className="space-y-2">
-                  {categories.map((category) => (
-                    <label key={category} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="form-checkbox text-secondary rounded"
-                        checked={activeFilters.categories.includes(category)}
-                        onChange={() => toggleCategory(category)}
-                      />
-                      <span className="ml-2 text-[rgb(25,25,25)]">{category}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+            {/* Usando CategorySidebar para navegação em categorias */}
+            <CategorySidebar 
+              categories={categories} 
+              activeCategory={categoryParam || undefined}
+            />
+            
+            <div className="bg-white rounded-lg shadow-sm p-6 mt-4">
+              <h3 className="font-semibold mb-4 border-b pb-2">Filtrar Resultados</h3>
               
               {/* Price Range */}
               <div className="mb-6">
-                <h3 className="font-semibold mb-3">Preço</h3>
+                <h4 className="font-semibold mb-3">Preço</h4>
                 <div className="flex items-center">
                   <input
                     type="number"
@@ -253,8 +481,8 @@ export default function ProductsPage() {
               
               {/* Brands */}
               <div className="mb-6">
-                <h3 className="font-semibold mb-3">Marcas</h3>
-                <div className="space-y-2">
+                <h4 className="font-semibold mb-3">Marcas</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
                   {brands.map((brand) => (
                     <label key={brand} className="flex items-center">
                       <input
@@ -269,85 +497,115 @@ export default function ProductsPage() {
                 </div>
               </div>
               
-              {/* Clear Filters Button */}
+              {/* Filter by categories for mobile */}
+              <div className="mb-6 lg:hidden">
+                <h4 className="font-semibold mb-3">Categorias Rápidas</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {productCategories.map((category) => (
+                    <label key={category} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="form-checkbox text-secondary rounded"
+                        checked={activeFilters.categories.includes(category)}
+                        onChange={() => toggleCategory(category)}
+                      />
+                      <span className="ml-2 text-[rgb(25,25,25)]">{category}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Clear Filters */}
               <button
                 onClick={clearAllFilters}
-                className="w-full bg-gray-100 text-[rgb(25,25,25)] py-2 rounded-md hover:bg-gray-200 transition-colors"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-md text-sm transition-colors"
               >
                 Limpar Filtros
               </button>
             </div>
           </aside>
           
-          {/* Product Grid */}
+          {/* Product List */}
           <div className="lg:w-3/4">
-            {/* Sorting & View Options */}
-            <div className="bg-white rounded-lg p-4 mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex items-center">
-                <span className="text-[rgb(140,140,140)] mr-2">Ordenar por:</span>
-                <select 
+            {/* Sort and View Options */}
+            <div className="bg-white p-4 rounded-lg shadow-sm mb-6 flex flex-col xs:flex-row justify-between items-center gap-3">
+              <div className="flex items-center w-full xs:w-auto">
+                <span className="text-sm sm:text-base text-[rgb(25,25,25)] mr-2 sm:mr-3">Ordenar por:</span>
+                <select
                   value={activeFilters.sort}
                   onChange={handleSortChange}
-                  className="form-select text-sm"
+                  className="border border-gray-300 rounded-md px-2 py-1 sm:px-3 sm:py-1.5 text-sm text-[rgb(25,25,25)] focus:outline-none focus:ring-2 focus:ring-secondary w-full xs:w-auto"
                 >
-                  <option value="featured">Relevância</option>
-                  <option value="price-low">Menor Preço</option>
-                  <option value="price-high">Maior Preço</option>
-                  <option value="newest">Mais Recente</option>
+                  <option value="featured">Destaques</option>
+                  <option value="price-low">Preço (Menor - Maior)</option>
+                  <option value="price-high">Preço (Maior - Menor)</option>
+                  <option value="newest">Novidades</option>
                 </select>
               </div>
               
-              <div className="flex items-center space-x-2">
-                <span className="text-[rgb(140,140,140)] text-sm">{filteredProducts.length} produtos</span>
-                <div className="border-l border-gray-300 h-6 mx-2"></div>
-                <div className="flex space-x-1">
-                  <button 
+              <div className="flex items-center gap-3 w-full xs:w-auto justify-between xs:justify-start">
+                <span className="text-sm sm:text-base text-[rgb(25,25,25)]">{filteredProducts.length} produtos</span>
+                <div className="flex border border-gray-300 rounded-md overflow-hidden">
+                  <button
                     onClick={() => setViewType('grid')}
-                    className={`p-2 rounded-md ${viewType === 'grid' ? 'bg-gray-100 text-[rgb(25,25,25)]' : 'text-[rgb(140,140,140)]'}`}
-                    title="Visualização em Grid"
+                    className={`p-2 ${viewType === 'grid' ? 'bg-gray-200' : 'bg-white'}`}
+                    aria-label="View as grid"
                   >
-                    <FiGrid />
+                    <FiGrid className="text-[rgb(25,25,25)]" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => setViewType('list')}
-                    className={`p-2 rounded-md ${viewType === 'list' ? 'bg-gray-100 text-[rgb(25,25,25)]' : 'text-[rgb(140,140,140)]'}`}
-                    title="Visualização em Lista"
+                    className={`p-2 ${viewType === 'list' ? 'bg-gray-200' : 'bg-white'}`}
+                    aria-label="View as list"
                   >
-                    <FiList />
+                    <FiList className="text-[rgb(25,25,25)]" />
                   </button>
                 </div>
               </div>
             </div>
             
-            {/* Products Display */}
-            {filteredProducts.length > 0 ? (
-              <div className={viewType === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    slug={product.slug}
-                    price={product.price}
-                    originalPrice={product.oldPrice || undefined}
-                    image={product.image}
-                    category={product.category}
-                    inStock={product.inStock}
-                    isNew={String(product.id).startsWith('g')} // Marca os produtos do Geko como novos
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg p-8 text-center">
-                <p className="text-[rgb(140,140,140)]">Nenhum produto encontrado com os filtros aplicados.</p>
-                <button 
+            {/* Pagination - Top */}
+            {renderPagination()}
+            
+            {/* Products Grid */}
+            {filteredProducts.length === 0 ? (
+              <div className="bg-white p-8 rounded-lg shadow-sm text-center">
+                <h3 className="text-lg font-semibold mb-2">Nenhum produto encontrado</h3>
+                <p className="text-[rgb(140,140,140)] mb-4">
+                  Nenhum produto corresponde aos filtros selecionados.
+                </p>
+                <button
                   onClick={clearAllFilters}
-                  className="mt-4 px-4 py-2 bg-secondary text-white rounded-md hover:bg-opacity-90"
+                  className="bg-secondary hover:bg-secondary-dark text-white font-medium py-2 px-4 rounded-md transition-colors"
                 >
                   Limpar Filtros
                 </button>
               </div>
+            ) : (
+              <div className={viewType === 'grid' 
+                ? `grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-4` 
+                : `space-y-4`}>
+                {paginatedProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    price={product.price}
+                    originalPrice={product.oldPrice}
+                    image={product.image}
+                    slug={product.slug}
+                    category={product.category}
+                    inStock={product.inStock}
+                    rating={4.5}
+                    isListView={viewType === 'list'}
+                    isNew={String(product.id).startsWith('g')}
+                  />
+                ))}
+              </div>
             )}
+            
+            {/* Pagination - Bottom */}
+            {renderPagination()}
           </div>
         </div>
       </div>

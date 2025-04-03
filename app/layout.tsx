@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Inter, Poppins } from 'next/font/google';
 import { CartProvider } from '@/context/CartContext';
+import { AuthProvider } from '@/context/AuthContext';
 import MiniCart from '@/components/MiniCart';
 import Header from '@/components/Header';
 
@@ -31,11 +32,13 @@ export default function RootLayout({
   return (
     <html lang="pt">
       <body className={`${inter.variable} ${poppins.variable} font-sans bg-[#F5F5F5]`}>
-        <CartProvider>
-          <Header />
-          <main className="min-h-screen">{children}</main>
-          <MiniCart />
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Header />
+            <main className="min-h-screen">{children}</main>
+            <MiniCart />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
